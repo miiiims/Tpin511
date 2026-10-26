@@ -25,3 +25,13 @@ J'ai d'abord vérifié que le serveur marchait bien avec curl, et il répondait.
 ## Solutions apportées et résultats
 
 J'ai augmenté la mémoire de la VM à environ 6 Go et je lui ai donné 5 processeurs. Le modèle est devenu environ 30 fois plus rapide et le script s'exécute maintenant en moins d'une minute. Pour git, j'ai créé un token sur GitHub et je l'ai utilisé à la place du mot de passe.
+
+### Exercice 1.2
+
+Dans cet exercice, c'est le  programme qui exécute l'outil demandé par le LLM avec execute_tool. Le résultat obtenu est '120'. On l'a ensuite renvoyé au LLM, qui a répondu « 15 times 8 is 120. ». Cette fois, la réponse vient bien du résultat de l'outil et non d'un calcul fait par le LLM. Le programme sert d'intermédiaire entre le LLM et l'outil, c'est ce qu'on appelle le harnais.
+
+Il faut ajouter la réponse du LLM avant le résultat de l'outil parce que le LLM ne se souvient de rien entre deux appels. Il ne connaît que ce qu'on lui renvoie dans messages, c'est-à-dire l'historique de la conversation. Sans ce message, il recevrait un résultat sans savoir qu'il l'avait demandé, et il risquerait d'inventer une réponse. Le plus important dans ce message est le champ tool_calls, qui garde la trace de sa demande.
+
+Le champ tool_call_id permet de relier le résultat à l'appel qui a été fait avant. On y met le même id que celui de l'appel. Ici il n'y avait qu'un seul appel, mais si le LLM demandait plusieurs outils en même temps, c'est cet id qui permettrait de savoir quel résultat correspond à quel appel.
+
+Pour la dernière question, j'ai testé en enlevant l'ajout du résultat de l'outil. Le serveur a renvoyé une erreur 400 Bad Request. J'ai vérifié sur internet : l'API d'OpenAI impose qu'un message assistant avec des tool_calls soit suivi d'un message tool pour chaque tool_call_id, et notre serveur llama.cpp applique la même règle.
