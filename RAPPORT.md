@@ -46,8 +46,6 @@ Le paramètre max_iterations limite le nombre de tours de la boucle, ce qui perm
 
 J'ai aussi remarqué que le LLM n'utilise pas toujours l'outil, même quand il est disponible. Lors d'un test, il a répondu à la question avec deux calculs en un seul tour, en faisant le calcul lui-même. Dans un autre test, il a utilisé l'outil pour la division mais a fait la soustraction tout seul. Les résultats étaient justes, mais rien ne le garantissait, et une consigne dans un system prompt pourrait l'obliger à toujours utiliser l'outil.
 
-
-
 ### Exercice 2.2
 
 Pour l'agent SQL, j'ai repris la boucle de l'exercice 2.1 en remplaçant Calculator par les trois outils créés par make_sql_tools, qui sont ListTables, DescribeTable et SQLQuery. Ces outils sont créés à l'intérieur d'une fonction qui reçoit la base de données, car le LLM ne peut envoyer que du texte et ne pourrait pas leur transmettre la base lui-même. J'ai aussi ajouté le system prompt de base donné dans le TP, qui demande au LLM d'explorer le schéma avant d'écrire une requête.
@@ -55,7 +53,6 @@ Pour l'agent SQL, j'ai repris la boucle de l'exercice 2.1 en remplaçant Calcula
 En affichant les outils appelés, j'ai pu voir comment l'agent trouve une réponse. Il commence par lister les tables, puis il décrit celles qui l'intéressent pour savoir quelles colonnes elles contiennent, un peu comme il lisait la description des outils dans les exercices précédents. Il transforme ensuite la question de l'utilisateur en requête SQL, l'exécute et répond à partir du résultat. Lors d'un test, il a même décrit les tables authors et books dans le même tour, ce qui montre l'intérêt de traiter chaque tool_call avec une boucle. Chaque question a demandé entre 4 et 5 tours, donc la limite de 5 itérations a été respectée, mais parfois de justesse.
 
 Pour vérifier les réponses, j'ai ouvert la base avec sqlite3 et j'ai écrit moi-même les requêtes correspondant aux cinq questions. Les résultats étaient identiques pour les quatre premières. Pour la dernière, l'agent a répondu que l'auteur ayant écrit le plus de livres était Ursula K. Le Guin, alors que ma requête montrait que quatre auteurs étaient à égalité avec 3 livres. En affichant sa requête, j'ai vu qu'il avait utilisé ORDER BY avec LIMIT 1, qui ne garde que la première ligne. Comme le résultat ne contenait qu'un seul auteur, il ne pouvait pas savoir qu'il y avait une égalité, et sa réponse était donc incomplète.
-
 
 ### Exercice 2.3
 
@@ -65,19 +62,112 @@ La variante A, qui demande d'utiliser des JOIN, n'a rien apporté, car l'agent e
 
 J'ai retenu la variante B, qui demande de corriger la requête en cas d'erreur. C'est celle qui a donné toutes les bonnes réponses avec le moins de tours, 19 contre 23 pour les autres. Le prompt a donc une influence sur le nombre d'itérations, même si l'écart reste faible et peut aussi venir du fait que le LLM ne répond pas toujours de la même façon. Aucune requête n'a échoué pendant mes tests, mais cette consigne reste la plus utile en pratique, car elle permet à l'agent de se corriger grâce au vrai message d'erreur de SQLite au lieu de s'arrêter.
 
-
 ## Difficultés rencontrées
 
 Au début, mon script semblait bloqué parce que l'appel au LLM ne finissait jamais. J'ai aussi eu un problème avec git, car GitHub refusait mon mot de passe au moment du push.
+
+Sur le TP lui-même, j'ai d'abord eu du mal à comprendre le rôle de chaque message, car je pensais que c'était l'assistant qui exécutait l'outil. J'ai aussi obtenu une erreur 400 Bad Request quand le résultat de l'outil n'était pas ajouté à l'historique. Enfin, le LLM ne se comporte pas toujours de la même façon, puisqu'il a parfois donné une réponse vide, n'a pas toujours utilisé l'outil disponible et a donné une réponse incomplète à la question sur l'auteur ayant écrit le plus de livres.
 
 ## Démarche suivie
 
 J'ai d'abord vérifié avec curl que le serveur fonctionnait, et il répondait bien. J'ai ensuite mesuré le temps d'une réponse simple, qui prenait presque une minute pour quelques mots. En regardant les ressources de ma machine virtuelle, j'ai vu qu'elle n'avait que 2 processeurs et 1,9 Go de RAM alors que le modèle fait 2,8 Go. Comme il ne tenait pas en mémoire, il utilisait le disque (swap), ce qui le rendait très lent.
 
+Pour les exercices, j'ai avancé étape par étape en affichant à chaque fois ce que renvoyait le LLM, comme le schéma des outils, le contenu de messages à chaque tour et les outils appelés par l'agent. J'ai aussi fait des tests en enlevant volontairement des éléments du code ou en baissant max_iterations pour voir ce qui se passait. J'ai travaillé sur des branches git pour tester sans abîmer la version principale.
+
 ## Solutions apportées et résultats
 
 J'ai augmenté la mémoire de la VM à environ 6 Go et je lui ai donné 5 processeurs, ce qui a rendu le modèle environ 30 fois plus rapide, et le script s'exécute maintenant en moins d'une minute. Pour git, j'ai créé un token sur GitHub que j'utilise à la place du mot de passe.
 
+En affichant l'historique des messages, j'ai compris que l'assistant demande l'outil et que c'est notre programme qui l'exécute. L'erreur 400 a disparu une fois le message tool ajouté avec le bon tool_call_id. Pour vérifier les réponses de l'agent SQL, j'ai écrit moi-même les requêtes dans sqlite3, ce qui m'a permis de repérer le problème du LIMIT 1. Comme le LLM varie d'une exécution à l'autre, j'ai lancé certains tests plusieurs fois avant de tirer des conclusions.
+
+## Réflexions
+
+Je pense que le tool calling est un pilier du fonctionnement d'un agent. Sans lui, le LLM ne fait que prédire du texte et peut se tromper, comme l'erreur 120 + 40 = 160 que j'ai vue au début du TP. Avec les outils, c'est du vrai code qui calcule ou qui lit la base, donc les résultats sont fiables. Le mécanisme est aussi assez simple, puisque le LLM ne fait que demander un outil et que c'est notre programme qui l'exécute, l'id permettant ensuite de relier chaque résultat à la bonne demande.
+
+Le principal risque d'un agent SQL est qu'il puisse modifier ou effacer la base. Avec la base du TP, une demande comme « supprime tous les livres » pourrait vider une table, et ce serait comme une attaque si quelqu'un le faisait volontairement. Une consigne dans le system prompt ne suffit pas, car un utilisateur peut demander à l'agent d'ignorer ses consignes. Il faut donc protéger l'agent dans le code, par exemple en ouvrant la base en lecture seule et en n'acceptant que les requêtes de lecture.
+
+Pour la gestion du contexte, la liste des messages grossit à chaque tour alors que le serveur est limité à 16 000 tokens. On pourrait compresser la conversation, comme le font certains agents que j'ai déjà utilisés, en résumant les anciens messages et en ne gardant que ce qui est important. On peut aussi couper les résultats d'outils trop longs et garder une limite sur le nombre de tours.
+
+J'aimerais ajouter une couche de sécurité à l'agent, car la sécurité des agents IA m'intéresse beaucoup. C'est ce que je compte faire ensuite avec l'extension sur les garde-fous de sécurité.
+
+## Annexe
+
+Code de sqlite_agent.py avec des commentaires.
+
+    from utils import Database
+    from utils import make_sql_tools
+    from utils import make_registry
+    from utils import make_tools
+    from utils import call_llm
+    from utils import execute_tool
+
+    # consigne pour le LLM (variante B)
+    SYSTEM_PROMPT = """You are a SQL assistant with access to a SQLite database.
+
+    Tools:
+    - ListTables: list all tables
+    - DescribeTable: get table structure
+    - SQLQuery: execute any SQL query
+
+    Think step by step. Explore the schema first, then query.
+    If a query fails, analyze the error and try again with a corrected query."""
 
 
+    def extract_message(response):
+        return response['choices'][0]['message']
 
+
+    # la boucle agent
+    def boucle_agent(question, tools, registry, max_iterations=5):
+        messages = [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": question}
+        ]
+
+        i = 0
+        while i < max_iterations:
+            print("Number", i + 1)
+            CALL = call_llm(messages, tools=tools)
+            message = extract_message(CALL)
+            messages.append(message)
+
+            # pas d'outil demande donc le LLM a fini
+            if not message.get('tool_calls'):
+                return message['content']
+
+            # on execute les outils et on renvoie le resultat au LLM
+            for tool_call in message['tool_calls']:
+                resultat = execute_tool(tool_call, registry)
+                print("   ", tool_call['function']['name'], tool_call['function']['arguments'])
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": tool_call['id'],
+                    "content": resultat,
+                })
+
+            i = i + 1
+
+        return "Max iterations reached"
+
+
+    # la base, les outils et les 5 questions
+    if __name__ == "__main__":
+        db = Database("library.db")
+        sql_tools = make_sql_tools(db)
+
+        tools = make_tools(sql_tools)
+        registry = make_registry(sql_tools)
+
+        questions = [
+            "What are the books written after 1970?",
+            "Who is the author of 'Dune' and when were they born?",
+            "How many books are there per genre?",
+            "What is the average rating per publisher?",
+            "Which author has written the most books?",
+        ]
+
+        for question in questions:
+            print("Question :", question)
+            reponse = boucle_agent(question, tools, registry)
+            print("Reponse a la question :", reponse)
+            print()
