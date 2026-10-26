@@ -57,6 +57,14 @@ En affichant les outils appelés, j'ai pu voir comment l'agent trouve une répon
 Pour vérifier les réponses, j'ai ouvert la base avec sqlite3 et j'ai écrit moi-même les requêtes correspondant aux cinq questions. Les résultats étaient identiques pour les quatre premières. Pour la dernière, l'agent a répondu que l'auteur ayant écrit le plus de livres était Ursula K. Le Guin, alors que ma requête montrait que quatre auteurs étaient à égalité avec 3 livres. En affichant sa requête, j'ai vu qu'il avait utilisé ORDER BY avec LIMIT 1, qui ne garde que la première ligne. Comme le résultat ne contenait qu'un seul auteur, il ne pouvait pas savoir qu'il y avait une égalité, et sa réponse était donc incomplète.
 
 
+### Exercice 2.3
+
+J'ai testé les trois variantes du system prompt sur les cinq questions et j'ai comparé leurs résultats avec ceux de la version de base.
+
+La variante A, qui demande d'utiliser des JOIN, n'a rien apporté, car l'agent en utilisait déjà quand c'était nécessaire. Elle a même été moins bonne, puisqu'une question a atteint la limite de 5 tours sans obtenir de réponse. La variante C, qui demande d'expliquer le raisonnement avant chaque outil, n'a presque rien changé, car le LLM n'a écrit qu'une seule explication en plus. Ce modèle raisonne déjà tout seul dans reasoning_content, donc lui demander de penser étape par étape a peu d'effet visible, même si c'est possible et déjà présent dans la version de base.
+
+J'ai retenu la variante B, qui demande de corriger la requête en cas d'erreur. C'est celle qui a donné toutes les bonnes réponses avec le moins de tours, 19 contre 23 pour les autres. Le prompt a donc une influence sur le nombre d'itérations, même si l'écart reste faible et peut aussi venir du fait que le LLM ne répond pas toujours de la même façon. Aucune requête n'a échoué pendant mes tests, mais cette consigne reste la plus utile en pratique, car elle permet à l'agent de se corriger grâce au vrai message d'erreur de SQLite au lieu de s'arrêter.
+
 
 ## Difficultés rencontrées
 
@@ -69,4 +77,7 @@ J'ai d'abord vérifié avec curl que le serveur fonctionnait, et il répondait b
 ## Solutions apportées et résultats
 
 J'ai augmenté la mémoire de la VM à environ 6 Go et je lui ai donné 5 processeurs, ce qui a rendu le modèle environ 30 fois plus rapide, et le script s'exécute maintenant en moins d'une minute. Pour git, j'ai créé un token sur GitHub que j'utilise à la place du mot de passe.
+
+
+
 

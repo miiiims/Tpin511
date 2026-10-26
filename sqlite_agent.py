@@ -12,7 +12,8 @@ Tools:
 - DescribeTable: get table structure
 - SQLQuery: execute any SQL query
 
-Think step by step. Explore the schema first, then query."""
+Think step by step. Explore the schema first, then query.
+If a query fails, analyze the error and try again with a corrected query."""
 
 
 def extract_message(response):
