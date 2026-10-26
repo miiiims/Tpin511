@@ -36,6 +36,18 @@ On peut aussi ajouter un champ Literal["french", "english"], qui devient dans le
 
 Enfin, j'ai remarqué qu'en lançant deux fois le même programme, la première réponse finale était vide alors que la deuxième était une phrase complète, ce qui montre que le LLM ne donne pas toujours la même réponse.
 
+### Exercice 2.1
+
+La boucle agent permet de rappeler le LLM autant de fois que nécessaire, en lui renvoyant à chaque tour tout l'enchaînement de la conversation, c'est-à-dire la question de l'utilisateur, ses demandes d'outils et les résultats obtenus. Contrairement à l'exercice 1.2, où on faisait exactement deux appels, le LLM peut ainsi enchaîner plusieurs outils avant de donner sa réponse. La boucle s'arrête dès que la réponse du LLM ne contient plus de tool_calls, et on renvoie alors son contenu.
+
+J'ai testé l'agent avec trois questions de calcul et les réponses étaient toutes correctes. Pour une question avec un seul calcul comme 15 fois 8, il faut deux tours, le premier pour demander l'outil et le second pour répondre avec le résultat. Pour une question avec deux calculs comme (15 fois 8) plus 20, il faut trois tours, car on ajoute un message assistant et un message tool de plus avant la réponse finale. En affichant le rôle et le contenu des messages à chaque tour, j'ai pu voir la liste grandir au fur et à mesure.
+
+Le paramètre max_iterations limite le nombre de tours de la boucle, ce qui permet d'éviter une boucle infinie si le LLM continuait à demander des outils sans jamais répondre. Pour le vérifier, je l'ai mis à 2. La question qui demandait deux calculs a alors renvoyé « Max iterations reached », car le LLM avait fait ses deux calculs mais n'avait plus de tour pour donner sa réponse.
+
+J'ai aussi remarqué que le LLM n'utilise pas toujours l'outil, même quand il est disponible. Lors d'un test, il a répondu à la question avec deux calculs en un seul tour, en faisant le calcul lui-même. Dans un autre test, il a utilisé l'outil pour la division mais a fait la soustraction tout seul. Les résultats étaient justes, mais rien ne le garantissait, et une consigne dans un system prompt pourrait l'obliger à toujours utiliser l'outil.
+
+
+
 ## Difficultés rencontrées
 
 Au début, mon script semblait bloqué parce que l'appel au LLM ne finissait jamais. J'ai aussi eu un problème avec git, car GitHub refusait mon mot de passe au moment du push.
@@ -47,3 +59,4 @@ J'ai d'abord vérifié avec curl que le serveur fonctionnait, et il répondait b
 ## Solutions apportées et résultats
 
 J'ai augmenté la mémoire de la VM à environ 6 Go et je lui ai donné 5 processeurs, ce qui a rendu le modèle environ 30 fois plus rapide, et le script s'exécute maintenant en moins d'une minute. Pour git, j'ai créé un token sur GitHub que j'utilise à la place du mot de passe.
+
