@@ -48,6 +48,16 @@ J'ai aussi remarqué que le LLM n'utilise pas toujours l'outil, même quand il e
 
 
 
+### Exercice 2.2
+
+Pour l'agent SQL, j'ai repris la boucle de l'exercice 2.1 en remplaçant Calculator par les trois outils créés par make_sql_tools, qui sont ListTables, DescribeTable et SQLQuery. Ces outils sont créés à l'intérieur d'une fonction qui reçoit la base de données, car le LLM ne peut envoyer que du texte et ne pourrait pas leur transmettre la base lui-même. J'ai aussi ajouté le system prompt de base donné dans le TP, qui demande au LLM d'explorer le schéma avant d'écrire une requête.
+
+En affichant les outils appelés, j'ai pu voir comment l'agent trouve une réponse. Il commence par lister les tables, puis il décrit celles qui l'intéressent pour savoir quelles colonnes elles contiennent, un peu comme il lisait la description des outils dans les exercices précédents. Il transforme ensuite la question de l'utilisateur en requête SQL, l'exécute et répond à partir du résultat. Lors d'un test, il a même décrit les tables authors et books dans le même tour, ce qui montre l'intérêt de traiter chaque tool_call avec une boucle. Chaque question a demandé entre 4 et 5 tours, donc la limite de 5 itérations a été respectée, mais parfois de justesse.
+
+Pour vérifier les réponses, j'ai ouvert la base avec sqlite3 et j'ai écrit moi-même les requêtes correspondant aux cinq questions. Les résultats étaient identiques pour les quatre premières. Pour la dernière, l'agent a répondu que l'auteur ayant écrit le plus de livres était Ursula K. Le Guin, alors que ma requête montrait que quatre auteurs étaient à égalité avec 3 livres. En affichant sa requête, j'ai vu qu'il avait utilisé ORDER BY avec LIMIT 1, qui ne garde que la première ligne. Comme le résultat ne contenait qu'un seul auteur, il ne pouvait pas savoir qu'il y avait une égalité, et sa réponse était donc incomplète.
+
+
+
 ## Difficultés rencontrées
 
 Au début, mon script semblait bloqué parce que l'appel au LLM ne finissait jamais. J'ai aussi eu un problème avec git, car GitHub refusait mon mot de passe au moment du push.
